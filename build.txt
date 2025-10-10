@@ -1,0 +1,9 @@
+python C:\Users\keiven\.platformio\packages\tool-esptoolpy\esptool.py `
+--chip esp32s3 merge_bin -o CyMouse_Receiver_firmware.bin `
+--flash_mode dio --flash_freq 80m --flash_size 4MB `
+0x0000 .pio\build\adafruit_feather_esp32s3\bootloader.bin `
+0x8000 .pio\build\adafruit_feather_esp32s3\partitions.bin `
+0xd000 C:\Users\keiven\.platformio\packages\framework-arduinoespressif32\tools\partitions\boot_app0.bin `
+0x10000 .pio\build\adafruit_feather_esp32s3\firmware.bin
+
+cp .pio\build\adafruit_feather_esp32s3\firmware.bin .\CyMouse_Receiver_update_firmware.bin
