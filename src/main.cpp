@@ -256,7 +256,7 @@ void initWiFi() {
     ESP_ERROR_CHECK(esp_wifi_set_country(&country));
     ESP_ERROR_CHECK(esp_wifi_set_protocol(WIFI_IF_STA, WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G | WIFI_PROTOCOL_11N));
     ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
-    ESP_ERROR_CHECK(esp_wifi_set_max_tx_power(80)); // 80 = 20dBm (80 * 0.25dBm)
+    ESP_ERROR_CHECK(esp_wifi_set_max_tx_power(66)); 
     ESP_ERROR_CHECK(esp_wifi_set_channel(WIFI_CHANNEL, WIFI_SECOND_CHAN_NONE));
     ESP_ERROR_CHECK(esp_wifi_set_bandwidth(WIFI_IF_STA, WIFI_BW_HT20));
     vTaskDelay(pdMS_TO_TICKS(100));
