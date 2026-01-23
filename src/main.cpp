@@ -147,91 +147,127 @@ void mouseTask(void *pvParameters) {
 }
 
 // 标准WiFi初始化函数
-bool initWiFi() {
-    esp_err_t err = nvs_flash_init();
-    if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-        ESP_ERROR_CHECK(nvs_flash_erase());
-        err = nvs_flash_init();
-    }
-    if (err != ESP_OK) {
-        Serial.printf("错误：初始化NVS失败 (%s)\n", esp_err_to_name(err));
-        return false;
-    }
+void initWiFi() {
 
-    err = esp_netif_init();
-    if (err != ESP_OK) {
-        Serial.printf("错误：初始化网络接口失败 (%s)\n", esp_err_to_name(err));
-        return false;
-    }
 
-    err = esp_event_loop_create_default();
-    if (err != ESP_OK && err != ESP_ERR_INVALID_STATE) {
-        Serial.printf("错误：创建事件循环失败 (%s)\n", esp_err_to_name(err));
-        return false;
-    }
+    // esp_err_t err = nvs_flash_init();
+    // if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+    //     ESP_ERROR_CHECK(nvs_flash_erase());
+    //     err = nvs_flash_init();
+    // }
+    // if (err != ESP_OK) {
+    //     Serial.printf("错误：初始化NVS失败 (%s)\n", esp_err_to_name(err));
+    //     return false;
+    // }
+    
+    // err = esp_netif_init();
+    // if (err != ESP_OK) {
+    //     Serial.printf("错误：初始化网络接口失败 (%s)\n", esp_err_to_name(err));
+    //     return false;
+    // }
 
-    if (esp_netif_create_default_wifi_sta() == NULL) {
-        Serial.println("错误：创建默认STA接口失败");
-        return false;
-    }
+    // err = esp_event_loop_create_default();
+    // if (err != ESP_OK && err != ESP_ERR_INVALID_STATE) {
+    //     Serial.printf("错误：创建事件循环失败 (%s)\n", esp_err_to_name(err));
+    //     return false;
+    // }
+
+    // if (esp_netif_create_default_wifi_sta() == NULL) {
+    //     Serial.println("错误：创建默认STA接口失败");
+    //     return false;
+    // }
+
+    // wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+    // err = esp_wifi_init(&cfg);
+    // if (err != ESP_OK) {
+    //     Serial.printf("错误：初始化Wi-Fi失败 (%s)\n", esp_err_to_name(err));
+    //     return false;
+    // }
+
+    // err = esp_wifi_set_storage(WIFI_STORAGE_RAM);
+    // if (err != ESP_OK) {
+    //     Serial.printf("错误：设置Wi-Fi存储模式失败 (%s)\n", esp_err_to_name(err));
+    //     return false;
+    // }
+
+    // err = esp_wifi_set_mode(WIFI_MODE_STA);
+    // if (err != ESP_OK) {
+    //     Serial.printf("错误：设置Wi-Fi模式失败 (%s)\n", esp_err_to_name(err));
+    //     return false;
+    // }
+    
+
+
+
+    // err = esp_wifi_start();
+    // if (err != ESP_OK) {
+    //     Serial.printf("错误：启动Wi-Fi失败 (%s)\n", esp_err_to_name(err));
+    //     return false;
+    // }
+
+    // err = esp_wifi_set_max_tx_power(80); // 80 = 20dBm (80 * 0.25dBm)
+    // if (err != ESP_OK) {
+    //     Serial.printf("错误：设置最大传输功率失败 (%s)\n", esp_err_to_name(err));
+    //     return false;
+    // }
+
+    // err = esp_wifi_set_channel(WIFI_CHANNEL, WIFI_SECOND_CHAN_NONE);
+    // if (err != ESP_OK) {
+    //     Serial.printf("错误：设置Wi-Fi频道失败 (%s)\n", esp_err_to_name(err));
+    //     return false;
+    // }
+
+    // err = esp_now_init();
+    // if (err != ESP_OK) {
+    //     Serial.printf("错误：初始化ESP-NOW失败 (%s)\n", esp_err_to_name(err));
+    //     return false;
+    // }
+
+    // err = esp_now_set_wake_window(65535); // 最大唤醒窗口以减少丢包
+    // if (err != ESP_OK) {
+    //     Serial.printf("错误：设置ESP-NOW唤醒窗口失败 (%s)\n", esp_err_to_name(err));
+    //     return false;
+    // }
+
+    // err = esp_wifi_config_espnow_rate(WIFI_IF_STA, WIFI_PHY_RATE_2M_S); // 设置为2Mbps以提高可靠性
+    // if (err != ESP_OK) {
+    //     Serial.printf("错误：配置ESP-NOW传输速率失败 (%s)\n", esp_err_to_name(err));
+    //     return false;
+    // }
+
+    ESP_ERROR_CHECK(esp_netif_init());
+    ESP_ERROR_CHECK(esp_event_loop_create_default());
+    esp_netif_create_default_wifi_sta();// 這是 ESP-NOW 官方範例中推薦的步驟
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    err = esp_wifi_init(&cfg);
-    if (err != ESP_OK) {
-        Serial.printf("错误：初始化Wi-Fi失败 (%s)\n", esp_err_to_name(err));
-        return false;
-    }
+    cfg.nvs_enable = false;
+    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+    ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+    wifi_country_t country = {
+        .cc = "CN",
+        .schan = 1,
+        .nchan = 13,
+        .policy = WIFI_COUNTRY_POLICY_AUTO,
+    };
 
-    err = esp_wifi_set_storage(WIFI_STORAGE_RAM);
-    if (err != ESP_OK) {
-        Serial.printf("错误：设置Wi-Fi存储模式失败 (%s)\n", esp_err_to_name(err));
-        return false;
-    }
+    // 必须先启动WiFi，再设置协议和其他运行时参数
+    ESP_ERROR_CHECK(esp_wifi_start());
+    ESP_ERROR_CHECK(esp_wifi_set_country(&country));
+    ESP_ERROR_CHECK(esp_wifi_set_protocol(WIFI_IF_STA, WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G | WIFI_PROTOCOL_11N));
+    ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
+    ESP_ERROR_CHECK(esp_wifi_set_max_tx_power(80)); // 80 = 20dBm (80 * 0.25dBm)
+    ESP_ERROR_CHECK(esp_wifi_set_channel(WIFI_CHANNEL, WIFI_SECOND_CHAN_NONE));
+    ESP_ERROR_CHECK(esp_wifi_set_bandwidth(WIFI_IF_STA, WIFI_BW_HT20));
+    vTaskDelay(pdMS_TO_TICKS(100));
+    ESP_ERROR_CHECK(esp_now_init());
+    ESP_ERROR_CHECK(esp_now_set_wake_window(65535));
+    ESP_ERROR_CHECK(esp_wifi_config_espnow_rate(WIFI_IF_STA, WIFI_PHY_RATE_2M_S));
 
-    err = esp_wifi_set_mode(WIFI_MODE_STA);
-    if (err != ESP_OK) {
-        Serial.printf("错误：设置Wi-Fi模式失败 (%s)\n", esp_err_to_name(err));
-        return false;
-    }
-
-    err = esp_wifi_start();
-    if (err != ESP_OK) {
-        Serial.printf("错误：启动Wi-Fi失败 (%s)\n", esp_err_to_name(err));
-        return false;
-    }
-
-    err = esp_wifi_set_max_tx_power(80); // 80 = 20dBm (80 * 0.25dBm)
-    if (err != ESP_OK) {
-        Serial.printf("错误：设置最大传输功率失败 (%s)\n", esp_err_to_name(err));
-        return false;
-    }
-
-    err = esp_wifi_set_channel(WIFI_CHANNEL, WIFI_SECOND_CHAN_NONE);
-    if (err != ESP_OK) {
-        Serial.printf("错误：设置Wi-Fi频道失败 (%s)\n", esp_err_to_name(err));
-        return false;
-    }
-
-    err = esp_now_init();
-    if (err != ESP_OK) {
-        Serial.printf("错误：初始化ESP-NOW失败 (%s)\n", esp_err_to_name(err));
-        return false;
-    }
-
-    err = esp_now_set_wake_window(65535); // 最大唤醒窗口以减少丢包
-    if (err != ESP_OK) {
-        Serial.printf("错误：设置ESP-NOW唤醒窗口失败 (%s)\n", esp_err_to_name(err));
-        return false;
-    }
-
-    err = esp_wifi_config_espnow_rate(WIFI_IF_STA, WIFI_PHY_RATE_2M_S); // 设置为2Mbps以提高可靠性
-    if (err != ESP_OK) {
-        Serial.printf("错误：配置ESP-NOW传输速率失败 (%s)\n", esp_err_to_name(err));
-        return false;
-    }
-
-    return true;
+   // return true;
 }
+
+
 
 // 断开并重置连接状态
 void resetConnection() {
@@ -258,6 +294,8 @@ void setup() {
 
     USB.begin();
     Mouse.begin();
+    initWiFi(); 
+    vTaskDelay(pdMS_TO_TICKS(500)); // 确保WiFi稳定启动
     
     mouseDataQueue = xQueueCreate(1024, sizeof(QueueItem_t));
     if (mouseDataQueue == NULL) {
@@ -265,10 +303,12 @@ void setup() {
         return;
     }
     
-    if (!initWiFi()) {
-        Serial.println("错误：Wi-Fi 初始化失败，系统停止。");
-        return;
-    }
+    // if (!initWiFi()) {
+    //     Serial.println("错误：Wi-Fi 初始化失败，系统停止。");
+    //     return;
+    // }
+
+    
 
     esp_err_t cbErr = esp_now_register_recv_cb(OnDataRecv);
     if (cbErr != ESP_OK) {
@@ -286,7 +326,7 @@ void setup() {
         return;
     }
 
-    xTaskCreatePinnedToCore(mouseTask, "MouseTask", 8192, NULL, configMAX_PRIORITIES - 1, NULL, 1);
+    xTaskCreate(mouseTask, "MouseTask", 8192, NULL, 5, NULL);
     
     Serial.println("初始化完成，开始广播身份...");
 }
