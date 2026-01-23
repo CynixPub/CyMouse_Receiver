@@ -200,6 +200,12 @@ bool initWiFi() {
         return false;
     }
 
+    err = esp_wifi_set_max_tx_power(80); // 80 = 20dBm (80 * 0.25dBm)
+    if (err != ESP_OK) {
+        Serial.printf("错误：设置最大传输功率失败 (%s)\n", esp_err_to_name(err));
+        return false;
+    }
+
     err = esp_wifi_set_channel(WIFI_CHANNEL, WIFI_SECOND_CHAN_NONE);
     if (err != ESP_OK) {
         Serial.printf("错误：设置Wi-Fi频道失败 (%s)\n", esp_err_to_name(err));
@@ -209,6 +215,18 @@ bool initWiFi() {
     err = esp_now_init();
     if (err != ESP_OK) {
         Serial.printf("错误：初始化ESP-NOW失败 (%s)\n", esp_err_to_name(err));
+        return false;
+    }
+
+    err = esp_now_set_wake_window(65535); // 最大唤醒窗口以减少丢包
+    if (err != ESP_OK) {
+        Serial.printf("错误：设置ESP-NOW唤醒窗口失败 (%s)\n", esp_err_to_name(err));
+        return false;
+    }
+
+    err = esp_wifi_config_espnow_rate(WIFI_IF_STA, WIFI_PHY_RATE_2M_S); // 设置为2Mbps以提高可靠性
+    if (err != ESP_OK) {
+        Serial.printf("错误：配置ESP-NOW传输速率失败 (%s)\n", esp_err_to_name(err));
         return false;
     }
 
@@ -241,7 +259,7 @@ void setup() {
     USB.begin();
     Mouse.begin();
     
-    mouseDataQueue = xQueueCreate(20, sizeof(QueueItem_t));
+    mouseDataQueue = xQueueCreate(1024, sizeof(QueueItem_t));
     if (mouseDataQueue == NULL) {
         Serial.println("错误：创建鼠标数据队列失败！");
         return;
@@ -268,7 +286,7 @@ void setup() {
         return;
     }
 
-    xTaskCreatePinnedToCore(mouseTask, "MouseTask", 4096, NULL, configMAX_PRIORITIES - 1, NULL, 1);
+    xTaskCreatePinnedToCore(mouseTask, "MouseTask", 8192, NULL, configMAX_PRIORITIES - 1, NULL, 1);
     
     Serial.println("初始化完成，开始广播身份...");
 }
