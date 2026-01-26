@@ -292,6 +292,9 @@ void setup() {
     Serial.println("CyMouse接收端启动...");
     Serial.printf("Size of UniversalPacket: %u bytes\n", sizeof(UniversalPacket));
 
+    USB.productName("CyMouse Receiver");      // 设置设备名
+    USB.manufacturerName("Cynix Tech");  // 设置厂商名 (可选)
+    
     USB.begin();
     Mouse.begin();
     initWiFi(); 
