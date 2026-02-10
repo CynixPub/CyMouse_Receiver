@@ -57,7 +57,8 @@ static uint8_t peerMacAddress[6] = {0};   // 保存已连接的对端MAC地址
 
 // ESP-NOW数据接收回调
 // 职责：只负责接收数据包，验证类型和长度，然后快速送入队列。不做任何业务逻辑。
-void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
+// IRAM_ATTR: 将函数放入内部SRAM，避免Flash缓存未命中带来的延迟
+void IRAM_ATTR OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
     if (data_len != sizeof(UniversalPacket)) {
         return; // 长度不匹配，立即丢弃
     }
@@ -239,8 +240,12 @@ void initWiFi() {
     ESP_ERROR_CHECK(esp_event_loop_create_default());
     esp_netif_create_default_wifi_sta();// 這是 ESP-NOW 官方範例中推薦的步驟
 
+
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     cfg.nvs_enable = false;
+    cfg.rx_ba_win = 16;
+    cfg.wifi_task_core_id = 0;
+
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
     ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
@@ -262,7 +267,8 @@ void initWiFi() {
     vTaskDelay(pdMS_TO_TICKS(100));
     ESP_ERROR_CHECK(esp_now_init());
     ESP_ERROR_CHECK(esp_now_set_wake_window(65535));
-    ESP_ERROR_CHECK(esp_wifi_config_espnow_rate(WIFI_IF_STA, WIFI_PHY_RATE_2M_S));
+    //ESP_ERROR_CHECK(esp_wifi_config_espnow_rate(WIFI_IF_STA, WIFI_PHY_RATE_2M_S));
+    ESP_ERROR_CHECK(esp_wifi_config_espnow_rate(WIFI_IF_STA, WIFI_PHY_RATE_MCS7_SGI));
 
    // return true;
 }
@@ -329,7 +335,8 @@ void setup() {
         return;
     }
 
-    xTaskCreate(mouseTask, "MouseTask", 8192, NULL, 5, NULL);
+    // 将USB HID任务固定到核心1，与核心0的WiFi任务分离，降低延迟抖动
+    xTaskCreatePinnedToCore(mouseTask, "MouseTask", 8192, NULL, 5, NULL, 1);
     
     Serial.println("初始化完成，开始广播身份...");
 }
