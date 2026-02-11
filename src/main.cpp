@@ -47,6 +47,9 @@ typedef struct {
     uint8_t buttons;
 } QueueItem_t;
 
+// --- 函数前置声明 ---
+void resetConnection();
+
 // --- 全局变量 ---
 USBHIDMouse Mouse;
 static QueueHandle_t mouseDataQueue;
@@ -88,60 +91,68 @@ void mouseTask(void *pvParameters) {
     Serial.println("鼠标处理任务已启动。");
 
     for (;;) {
-        if (xQueueReceive(mouseDataQueue, &receivedItem, portMAX_DELAY) == pdTRUE) {
-            
-            // 收到任何数据包都代表连接是活动的，更新心跳时间
-            lastPacketTime = millis();
+        // 使用有限超时代替无限等待，以便在无数据时检查心跳超时
+        BaseType_t queueResult = xQueueReceive(mouseDataQueue, &receivedItem, pdMS_TO_TICKS(500));
 
-            // 当我们收到第一个鼠标数据包时，意味着发送端已经与我们配对成功。
-            // 此时我们才需要将发送端添加为对等设备，并标记连接状态。
-            if (!isConnected) {
-                Serial.print("收到首个鼠标数据包，连接建立！发送端 MAC: ");
-                for (int i = 0; i < 6; i++) {
-                    Serial.printf("%02X", receivedItem.mac_addr[i]);
-                    if (i < 5) Serial.print(":");
-                }
-                Serial.println();
-                
-                // 保存对端的MAC地址，以便断开连接时使用
-                memcpy(peerMacAddress, receivedItem.mac_addr, 6);
-
-                esp_now_peer_info_t peerInfo = {};
-                memcpy(peerInfo.peer_addr, peerMacAddress, 6);
-                peerInfo.channel = WIFI_CHANNEL;
-                peerInfo.encrypt = false;
-                peerInfo.ifidx = WIFI_IF_STA;
-                
-                // 尝试添加对等设备，如果已存在则尝试修改
-                if (esp_now_add_peer(&peerInfo) != ESP_OK) {
-                    if (esp_now_mod_peer(&peerInfo) == ESP_OK) {
-                        Serial.println("对等设备已存在，更新信息成功。");
-                    } else {
-                        Serial.println("警告：添加或更新对等设备失败。");
-                    }
-                } else {
-                    Serial.println("已将发送端添加为对等设备。");
-                }
-                isConnected = true; // 确认连接
+        // 队列超时，没有收到数据，检查心跳
+        if (queueResult != pdTRUE) {
+            if (isConnected && (millis() - lastPacketTime > CONNECTION_TIMEOUT)) {
+                resetConnection();
             }
-            
-            // 只有当包类型是MOUSE_DATA时，才处理鼠标动作
-            if (receivedItem.type == PACKET_TYPE_MOUSE_DATA) {
-                // 处理鼠标移动和滚轮
-                if (receivedItem.deltaX != 0 || receivedItem.deltaY != 0 || receivedItem.wheel != 0) {
-                    Mouse.move(receivedItem.deltaX, receivedItem.deltaY, receivedItem.wheel);
-                }
+            continue;
+        }
 
-                // 处理按键
-                if (receivedItem.buttons != lastButtons) {
-                    uint8_t changed_buttons = receivedItem.buttons ^ lastButtons;
-                    if (changed_buttons & 0x01) { (receivedItem.buttons & 0x01) ? Mouse.press(MOUSE_LEFT) : Mouse.release(MOUSE_LEFT); }
-                    if (changed_buttons & 0x02) { (receivedItem.buttons & 0x02) ? Mouse.press(MOUSE_RIGHT) : Mouse.release(MOUSE_RIGHT); }
-                    if (changed_buttons & 0x04) { (receivedItem.buttons & 0x04) ? Mouse.press(MOUSE_MIDDLE) : Mouse.release(MOUSE_MIDDLE); }
-                    if (changed_buttons & 0x08) { (receivedItem.buttons & 0x08) ? Mouse.press(MOUSE_BACKWARD) : Mouse.release(MOUSE_BACKWARD); }
-                    if (changed_buttons & 0x10) { (receivedItem.buttons & 0x10) ? Mouse.press(MOUSE_FORWARD) : Mouse.release(MOUSE_FORWARD); }
-                    lastButtons = receivedItem.buttons;
+        // 收到任何数据包都代表连接是活动的，更新心跳时间
+        lastPacketTime = millis();
+
+        // 当我们收到第一个鼠标数据包时，意味着发送端已经与我们配对成功。
+        // 此时我们才需要将发送端添加为对等设备，并标记连接状态。
+        if (!isConnected) {
+            Serial.print("收到首个鼠标数据包，连接建立！发送端 MAC: ");
+            for (int i = 0; i < 6; i++) {
+                Serial.printf("%02X", receivedItem.mac_addr[i]);
+                if (i < 5) Serial.print(":");
+            }
+            Serial.println();
+            
+            // 保存对端的MAC地址，以便断开连接时使用
+            memcpy(peerMacAddress, receivedItem.mac_addr, 6);
+
+            esp_now_peer_info_t peerInfo = {};
+            memcpy(peerInfo.peer_addr, peerMacAddress, 6);
+            peerInfo.channel = WIFI_CHANNEL;
+            peerInfo.encrypt = false;
+            peerInfo.ifidx = WIFI_IF_STA;
+            
+            // 尝试添加对等设备，如果已存在则尝试修改
+            if (esp_now_add_peer(&peerInfo) != ESP_OK) {
+                if (esp_now_mod_peer(&peerInfo) == ESP_OK) {
+                    Serial.println("对等设备已存在，更新信息成功。");
+                } else {
+                    Serial.println("警告：添加或更新对等设备失败。");
                 }
+            } else {
+                Serial.println("已将发送端添加为对等设备。");
+            }
+            isConnected = true; // 确认连接
+        }
+        
+        // 只有当包类型是MOUSE_DATA时，才处理鼠标动作
+        if (receivedItem.type == PACKET_TYPE_MOUSE_DATA) {
+            // 处理鼠标移动和滚轮
+            if (receivedItem.deltaX != 0 || receivedItem.deltaY != 0 || receivedItem.wheel != 0) {
+                Mouse.move(receivedItem.deltaX, receivedItem.deltaY, receivedItem.wheel);
+            }
+
+            // 处理按键
+            if (receivedItem.buttons != lastButtons) {
+                uint8_t changed_buttons = receivedItem.buttons ^ lastButtons;
+                if (changed_buttons & 0x01) { (receivedItem.buttons & 0x01) ? Mouse.press(MOUSE_LEFT) : Mouse.release(MOUSE_LEFT); }
+                if (changed_buttons & 0x02) { (receivedItem.buttons & 0x02) ? Mouse.press(MOUSE_RIGHT) : Mouse.release(MOUSE_RIGHT); }
+                if (changed_buttons & 0x04) { (receivedItem.buttons & 0x04) ? Mouse.press(MOUSE_MIDDLE) : Mouse.release(MOUSE_MIDDLE); }
+                if (changed_buttons & 0x08) { (receivedItem.buttons & 0x08) ? Mouse.press(MOUSE_BACKWARD) : Mouse.release(MOUSE_BACKWARD); }
+                if (changed_buttons & 0x10) { (receivedItem.buttons & 0x10) ? Mouse.press(MOUSE_FORWARD) : Mouse.release(MOUSE_FORWARD); }
+                lastButtons = receivedItem.buttons;
             }
         }
     }
@@ -149,92 +160,6 @@ void mouseTask(void *pvParameters) {
 
 // 标准WiFi初始化函数
 void initWiFi() {
-
-
-    // esp_err_t err = nvs_flash_init();
-    // if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-    //     ESP_ERROR_CHECK(nvs_flash_erase());
-    //     err = nvs_flash_init();
-    // }
-    // if (err != ESP_OK) {
-    //     Serial.printf("错误：初始化NVS失败 (%s)\n", esp_err_to_name(err));
-    //     return false;
-    // }
-    
-    // err = esp_netif_init();
-    // if (err != ESP_OK) {
-    //     Serial.printf("错误：初始化网络接口失败 (%s)\n", esp_err_to_name(err));
-    //     return false;
-    // }
-
-    // err = esp_event_loop_create_default();
-    // if (err != ESP_OK && err != ESP_ERR_INVALID_STATE) {
-    //     Serial.printf("错误：创建事件循环失败 (%s)\n", esp_err_to_name(err));
-    //     return false;
-    // }
-
-    // if (esp_netif_create_default_wifi_sta() == NULL) {
-    //     Serial.println("错误：创建默认STA接口失败");
-    //     return false;
-    // }
-
-    // wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    // err = esp_wifi_init(&cfg);
-    // if (err != ESP_OK) {
-    //     Serial.printf("错误：初始化Wi-Fi失败 (%s)\n", esp_err_to_name(err));
-    //     return false;
-    // }
-
-    // err = esp_wifi_set_storage(WIFI_STORAGE_RAM);
-    // if (err != ESP_OK) {
-    //     Serial.printf("错误：设置Wi-Fi存储模式失败 (%s)\n", esp_err_to_name(err));
-    //     return false;
-    // }
-
-    // err = esp_wifi_set_mode(WIFI_MODE_STA);
-    // if (err != ESP_OK) {
-    //     Serial.printf("错误：设置Wi-Fi模式失败 (%s)\n", esp_err_to_name(err));
-    //     return false;
-    // }
-    
-
-
-
-    // err = esp_wifi_start();
-    // if (err != ESP_OK) {
-    //     Serial.printf("错误：启动Wi-Fi失败 (%s)\n", esp_err_to_name(err));
-    //     return false;
-    // }
-
-    // err = esp_wifi_set_max_tx_power(80); // 80 = 20dBm (80 * 0.25dBm)
-    // if (err != ESP_OK) {
-    //     Serial.printf("错误：设置最大传输功率失败 (%s)\n", esp_err_to_name(err));
-    //     return false;
-    // }
-
-    // err = esp_wifi_set_channel(WIFI_CHANNEL, WIFI_SECOND_CHAN_NONE);
-    // if (err != ESP_OK) {
-    //     Serial.printf("错误：设置Wi-Fi频道失败 (%s)\n", esp_err_to_name(err));
-    //     return false;
-    // }
-
-    // err = esp_now_init();
-    // if (err != ESP_OK) {
-    //     Serial.printf("错误：初始化ESP-NOW失败 (%s)\n", esp_err_to_name(err));
-    //     return false;
-    // }
-
-    // err = esp_now_set_wake_window(65535); // 最大唤醒窗口以减少丢包
-    // if (err != ESP_OK) {
-    //     Serial.printf("错误：设置ESP-NOW唤醒窗口失败 (%s)\n", esp_err_to_name(err));
-    //     return false;
-    // }
-
-    // err = esp_wifi_config_espnow_rate(WIFI_IF_STA, WIFI_PHY_RATE_2M_S); // 设置为2Mbps以提高可靠性
-    // if (err != ESP_OK) {
-    //     Serial.printf("错误：配置ESP-NOW传输速率失败 (%s)\n", esp_err_to_name(err));
-    //     return false;
-    // }
 
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
@@ -268,7 +193,7 @@ void initWiFi() {
     ESP_ERROR_CHECK(esp_now_init());
     ESP_ERROR_CHECK(esp_now_set_wake_window(65535));
     //ESP_ERROR_CHECK(esp_wifi_config_espnow_rate(WIFI_IF_STA, WIFI_PHY_RATE_2M_S));
-    ESP_ERROR_CHECK(esp_wifi_config_espnow_rate(WIFI_IF_STA, WIFI_PHY_RATE_MCS7_SGI));
+    ESP_ERROR_CHECK(esp_wifi_config_espnow_rate(WIFI_IF_STA, WIFI_PHY_RATE_MCS0_LGI));
 
    // return true;
 }
@@ -312,12 +237,6 @@ void setup() {
         return;
     }
     
-    // if (!initWiFi()) {
-    //     Serial.println("错误：Wi-Fi 初始化失败，系统停止。");
-    //     return;
-    // }
-
-    
 
     esp_err_t cbErr = esp_now_register_recv_cb(OnDataRecv);
     if (cbErr != ESP_OK) {
@@ -356,11 +275,7 @@ void loop() {
             Serial.println("正在广播身份，等待配对...");
         }
     } else {
-        // 如果已连接，则检查心跳是否超时
-        if (millis() - lastPacketTime > CONNECTION_TIMEOUT) {
-            resetConnection();
-        }
+        // 已连接时，mouseTask 负责心跳超时检测，loop 无需工作
+        delay(1000);
     }
-    
-    delay(100); // 降低主循环CPU占用
 }
