@@ -1,0 +1,42 @@
+CyMouse Receiver ESP-IDF 构建与固件导出说明
+
+1. 初始化 ESP-IDF 环境
+	先进入工程根目录，然后加载 ESP-IDF 环境。
+
+	source "$IDF_PATH/export.sh"
+
+	如果 IDF_PATH 还没有设置，可以改成你本机的实际安装路径，例如：
+
+	source ~/esp/esp-idf/export.sh
+
+2. 编译工程
+
+	idf.py build
+
+3. 烧录并查看串口日志
+
+	idf.py -p /dev/ttyACM0 flash monitor
+
+	串口设备名按实际情况调整，例如 /dev/ttyUSB0。
+
+4. 导出完整固件包
+	下面的命令会把 bootloader、分区表和应用程序合并成一个完整烧录包：
+
+	python "$IDF_PATH/components/esptool_py/esptool/esptool.py" \
+	  --chip esp32s3 merge_bin -o CyMouse_Receiver_firmware.bin \
+	  --flash_mode dio --flash_freq 80m --flash_size 2MB \
+	  0x0 build/bootloader/bootloader.bin \
+	  0x8000 build/partition_table/partition-table.bin \
+	  0x10000 build/CyMouse_Receiver.bin
+
+5. 导出仅应用更新包
+	如果只需要主程序 bin 用于升级，直接复制应用固件即可：
+
+	cp build/CyMouse_Receiver.bin ./CyMouse_Receiver_update_firmware.bin
+
+6. 当前默认输出文件
+
+	完整固件包: CyMouse_Receiver_firmware.bin
+	更新固件包: CyMouse_Receiver_update_firmware.bin
+	ESP-IDF 应用固件: build/CyMouse_Receiver.bin
+

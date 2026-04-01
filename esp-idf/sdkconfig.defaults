@@ -1,0 +1,21 @@
+# CyMouse Receiver - sdkconfig 默认值
+# 这些值在首次构建/重新配置时对新增的 esp_tinyusb Kconfig 选项生效
+
+# ── CPU 频率 ─────────────────────────────────────────────
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ=240
+
+# ── FreeRTOS tick 频率 ───────────────────────────────────
+# 默认 100Hz (10ms tick) 导致 pdMS_TO_TICKS(1~9) 全部 = 0 ticks，
+# USB HID 1ms 同步信号量完全失效。改为 1000Hz 才能支持 ms 级时序。
+CONFIG_FREERTOS_HZ=1000
+
+# ── TinyUSB HID ──────────────────────────────────────────
+CONFIG_TINYUSB_HID_COUNT=1
+
+# ── TinyUSB USB 设备描述符字符串 ──────────────────────────
+CONFIG_TINYUSB_DESC_MANUFACTURER_STRING="Cynix Tech"
+CONFIG_TINYUSB_DESC_PRODUCT_STRING="CyMouse Receiver"
+CONFIG_TINYUSB_DESC_SERIAL_STRING="CyMouse-00001"
+CONFIG_TINYUSB_DESC_USE_ESPRESSIF_VID=y
+CONFIG_TINYUSB_DESC_USE_DEFAULT_PID=y
