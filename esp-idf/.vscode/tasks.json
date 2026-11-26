@@ -1,0 +1,74 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "ESP-IDF: WSL 编译",
+            "type": "process",
+            "command": "/bin/bash",
+            "args": [
+                "-c",
+                "source \"$IDF_SETUP_SCRIPT\" && idf.py build"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "env": {
+                    "IDF_SETUP_SCRIPT": "${userHome}/.espressif/tools/activate_idf_v6.1.1.sh"
+                }
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": ["$gcc"]
+        },
+        {
+            "label": "ESP-IDF: Windows 烧录",
+            "type": "process",
+            "command": "py.exe",
+            "args": [
+                "-m", "esptool",
+                "--chip", "esp32s3",
+                "--port", "${input:windowsSerialPort}",
+                "--baud", "460800",
+                "write-flash",
+                "@flash_args"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "ESP-IDF: Windows 串口监视",
+            "type": "process",
+            "command": "py.exe",
+            "args": [
+                "-m", "serial.tools.miniterm",
+                "${input:windowsSerialPort}", "115200"
+            ],
+            "presentation": {
+                "reveal": "always",
+                "focus": true,
+                "panel": "dedicated"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "ESP-IDF: 编译 + 烧录",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "ESP-IDF: WSL 编译",
+                "ESP-IDF: Windows 烧录"
+            ],
+            "problemMatcher": []
+        }
+    ],
+    "inputs": [
+        {
+            "id": "windowsSerialPort",
+            "type": "promptString",
+            "description": "Windows 串口号（例如 COM12，烧录和监控请使用对应设备的端口）",
+            "default": "COM12"
+        }
+    ]
+}
