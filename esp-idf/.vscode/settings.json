@@ -4,10 +4,11 @@
     "board/esp32s3-builtin.cfg"
   ],
   "idf.port": "/dev/ttyUSB0",
-  "idf.currentSetup": "/home/keiven/.espressif/v6.0/esp-idf",
+  "idf.currentSetup": "/home/keiven/.espressif/v6.1.1/esp-idf",
   "idf.customExtraVars": {
     "IDF_TARGET": "esp32s3"
   },
+  "cmake.configureOnOpen": false,
   "clangd.path": "/home/keiven/.espressif/tools/esp-clang/esp-20.1.1_20250829/esp-clang/bin/clangd",
   "clangd.arguments": [
     "--background-index",
